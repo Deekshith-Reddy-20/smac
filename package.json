@@ -1,0 +1,89 @@
+{
+  "name": "@cueai/lit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Savuor — standalone companion-only Electron app",
+  "author": "Savuor",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.node.json --noEmit && vite build && tsc -p tsconfig.electron.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.electron.json",
+    "pack": "npm run build && electron-builder --dir",
+    "package": "node scripts/package-windows.mjs",
+    "dist": "node scripts/package-windows.mjs"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.28.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.6.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.0.12",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vite": "^7.0.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "appId": "com.savuor.app",
+    "productName": "Savuor",
+    "copyright": "Copyright © Savuor",
+    "electronVersion": "37.10.3",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/question-engine.selftest.*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend-dist/savuor-backend",
+        "to": "backend"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Savuor",
+      "uninstallDisplayName": "Savuor",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "artifactName": "SavuorSetup.${ext}"
+    }
+  }
+}

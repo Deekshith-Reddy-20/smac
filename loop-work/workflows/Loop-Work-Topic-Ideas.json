@@ -1,0 +1,149 @@
+{
+  "name": "Loop Work — Topic Ideas",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## STEP 1 — Start\nTest in editor or open the form.\nPick a lane (mix / automation / websites / marketing).\n\nNeed GEMINI_API_KEY in Windows env or n8n variables.\nKey: https://aistudio.google.com/apikey",
+        "height": 300,
+        "width": 320,
+        "color": 5
+      },
+      "id": "sticky-ideas",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-480, 180]
+    },
+    {
+      "parameters": {},
+      "id": "manual-ideas",
+      "name": "Test in editor",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-140, 300]
+    },
+    {
+      "parameters": {
+        "formTitle": "Loop Work — 10 video ideas",
+        "formDescription": "Pick a lane or leave blank for a mix of automation, websites, and marketing.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Lane",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "mix" },
+                  { "option": "automation" },
+                  { "option": "website design" },
+                  { "option": "digital marketing" }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Get ideas"
+        }
+      },
+      "id": "form-ideas",
+      "name": "Start from form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [-140, 500],
+      "webhookId": "loop-work-topic-ideas"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "model",
+              "name": "gemini_model",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "config-ideas",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [120, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.item.json;\nconst lane = String(j.Lane || j.lane || 'mix');\nconst model = j.gemini_model || 'gemini-2.5-flash';\nconst key = $env.GEMINI_API_KEY;\nif (!key) {\n  throw new Error('Set GEMINI_API_KEY in n8n env / Windows environment variables');\n}\nconst prompt = `You are the content strategist for LOOP WORK, a channel about AI automation (n8n), website design, and digital marketing.\\nGive 10 high-performing faceless Shorts/Reels ideas.\\nLane: ${lane}\\nEach idea must have a sharp hook, a specific promise, and a visual mix (Pexels b-roll + AI stills).\\nReturn JSON only: {\"ideas\":[{\"title\":\"\",\"hook\":\"\",\"format\":\"reel\",\"lane\":\"\",\"why_it_will_perform\":\"\",\"pexels_query\":\"\",\"ai_image_prompt\":\"\"}]}`;\nreturn [{\n  json: {\n    url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,\n    body: {\n      contents: [{ role: 'user', parts: [{ text: prompt }] }],\n      generationConfig: { temperature: 0.9, responseMimeType: 'application/json' }\n    }\n  }\n}];"
+      },
+      "id": "build-gemini",
+      "name": "Build Gemini request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "gemini-http",
+      "name": "Gemini (free)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.candidates[0].content.parts[0].text;\nconst cleaned = text.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '').trim();\nconst pack = JSON.parse(cleaned);\nreturn (pack.ideas || []).map((idea, i) => ({ json: { n: i + 1, ...idea } }));"
+      },
+      "id": "parse-ideas",
+      "name": "Parse ideas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 380]
+    }
+  ],
+  "connections": {
+    "Test in editor": {
+      "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
+    },
+    "Start from form": {
+      "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
+    },
+    "Config": {
+      "main": [[{ "node": "Build Gemini request", "type": "main", "index": 0 }]]
+    },
+    "Build Gemini request": {
+      "main": [[{ "node": "Gemini (free)", "type": "main", "index": 0 }]]
+    },
+    "Gemini (free)": {
+      "main": [[{ "node": "Parse ideas", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "loop-work-ideas-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "loopWorkTopicIdeas",
+  "tags": []
+}

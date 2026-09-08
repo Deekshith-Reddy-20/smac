@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-electron/
+release/
+backend/.venv/
+backend/.env
+backend/build/
+backend/dist/
+backend-dist/
+.env
+*.log
+*.map

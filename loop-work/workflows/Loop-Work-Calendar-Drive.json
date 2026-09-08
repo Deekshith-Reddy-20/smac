@@ -1,0 +1,1851 @@
+{
+  "name": "Loop Work \u2014 Calendar Sheet + Drive",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Sheet calendar\nEvery run takes the next row with status = pending.\nSchedule = 1 topic / day.\n\nPaste spreadsheet ID in Config.\nConnect Google Sheets login.",
+        "height": 240,
+        "width": 300,
+        "color": 5
+      },
+      "id": "cd000",
+      "name": "STEP 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "cd001",
+      "name": "1. Test in editor",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "cd002",
+      "name": "1. Every morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sid",
+              "name": "spreadsheetId",
+              "value": "PASTE_GOOGLE_SHEET_ID_HERE",
+              "type": "string"
+            },
+            {
+              "id": "sn",
+              "name": "sheetName",
+              "value": "Calendar",
+              "type": "string"
+            },
+            {
+              "id": "df",
+              "name": "driveFolderId",
+              "value": "PASTE_DRIVE_PARENT_FOLDER_ID_HERE",
+              "type": "string"
+            },
+            {
+              "id": "rp",
+              "name": "rootPath",
+              "value": "C:\\Users\\littu\\OneDrive\\Desktop\\lit\\loop-work",
+              "type": "string"
+            },
+            {
+              "id": "out",
+              "name": "outDir",
+              "value": "={{ 'C:\\\\Users\\\\littu\\\\OneDrive\\\\Desktop\\\\lit\\\\loop-work' + '\\\\output\\\\' + $now.toFormat('yyyyMMdd-HHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "gm",
+              "name": "geminiModel",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cd003",
+      "name": "2. Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.spreadsheetId }",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.sheetName }",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "cd004",
+      "name": "3. Read calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        280,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SHEETS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "st",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "cd005",
+      "name": "3. Keep pending only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "cd006",
+      "name": "3b. One topic",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Script from that topic\nGemini writes script AND divides scenes into:\nAI image / AI video / stock\nThen the Sheet is updated.",
+        "height": 180,
+        "width": 300,
+        "color": 6
+      },
+      "id": "cd007",
+      "name": "STEP 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sys",
+              "name": "systemPrompt",
+              "value": "You are the content director for LOOP WORK (n8n automation, website design, digital marketing). Faceless 9:16 Instagram Reel / YouTube Short.\n\nLOOK: magic hour, golden rim light, teal shadows, photoreal, no text, no logos, no UI.\n\nFrom the given calendar TOPIC only, write the script, then DIVIDE the script into exactly 6 scenes. Each scene has ONE visual type:\n\nVISUAL MIX (exact):\n- 2 scenes visual_type = \"ai_image\"\n- 2 scenes visual_type = \"stock_video\"\n- 1 scene visual_type = \"stock_photo\"\n- 1 scene visual_type = \"ai_video\"\n\nai_prompt starts with: \"cinematic still, magic hour, golden rim light, teal shadows,\"\nai_video_prompt = same look + one camera move, 4 seconds, no text, no dialogue\nstock_query = 3-6 real Pexels words, golden hour / laptop / small business. No brand names.\nimage_to_video_prompt = \"slow cinematic push in, dust in sunbeams, no morphing, no text\"\n\nHook in sentence 1. 125-155 words. Scene narrations concatenated = script.\n\nReturn JSON only:\n{\"title\":\"\",\"hook\":\"\",\"script\":\"\",\"caption\":\"\",\"hashtags\":[\"loopwork\"],\"youtube_description\":\"\",\"visual_plan\":\"2 ai_image + 2 stock_video + 1 stock_photo + 1 ai_video\",\"scenes\":[{\"id\":1,\"narration\":\"\",\"visual_type\":\"ai_image\",\"stock_query\":\"\",\"ai_prompt\":\"\",\"ai_video_prompt\":\"\",\"image_to_video_prompt\":\"\"}]}",
+              "type": "string"
+            },
+            {
+              "id": "usr",
+              "name": "userPrompt",
+              "value": "={ 'Channel: Loop Work. Platform: ' + $('3b. One topic').first().json.platform + '\\nCalendar date: ' + $('3b. One topic').first().json.date + '\\nTOPIC: ' + $('3b. One topic').first().json.topic + '\\nDivide visuals from this topic only. Return JSON only.' }",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cd008",
+      "name": "4. Script prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1060,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('2. Config').first().json.geminiModel + ':generateContent?key=' + $env.GEMINI_API_KEY }",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ systemInstruction: { parts: [{ text: $json.systemPrompt }] }, contents: [{ role: 'user', parts: [{ text: $json.userPrompt }] }], generationConfig: { temperature: 0.75, responseMimeType: 'application/json' } }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "cd009",
+      "name": "4. Gemini script + visual split",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pack",
+              "name": "pack",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text.replaceAll('```json','').replaceAll('```','').trim()) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd010",
+      "name": "5. Extract pack",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Update Sheet + Drive folder\nScript lands in the row.\nOne Drive folder for this day holds script, images, stock, AI video, audio, final mp4.",
+        "height": 200,
+        "width": 320,
+        "color": 4
+      },
+      "id": "cd011",
+      "name": "STEP 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.spreadsheetId }",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.sheetName }",
+          "mode": "name"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={ $('3b. One topic').first().json.date }",
+            "status": "script_done",
+            "script": "={ $('5. Extract pack').first().json.pack.script }",
+            "hook": "={ $('5. Extract pack').first().json.pack.hook }",
+            "caption": "={ $('5. Extract pack').first().json.pack.caption }",
+            "hashtags": "={ ($('5. Extract pack').first().json.pack.hashtags || []).join(' ') }",
+            "visual_plan": "={ $('5. Extract pack').first().json.pack.visual_plan }"
+          },
+          "matchingColumns": [
+            "date"
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "cd012",
+      "name": "6. Sheet: save script",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1900,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SHEETS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "={{ \"powershell -NoProfile -Command \\\"New-Item -ItemType Directory -Force -Path '\" + $('2. Config').first().json.outDir + \"\\\\media','\" + $('2. Config').first().json.outDir + \"\\\\clips' | Out-Null\\\"\" }"
+      },
+      "id": "cd013",
+      "name": "7. Local folders",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2180,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "name": "={ $('3b. One topic').first().json.date + ' - ' + ($('5. Extract pack').first().json.pack.title || $('3b. One topic').first().json.topic) }",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={ $('2. Config').first().json.driveFolderId }"
+        },
+        "options": {}
+      },
+      "id": "cd014",
+      "name": "8. Create Drive folder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2180,
+        320
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DRIVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t",
+              "name": "scriptText",
+              "value": "={ $('5. Extract pack').first().json.pack.title + '\\n\\n' + $('5. Extract pack').first().json.pack.script }",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd015",
+      "name": "8b. Script to file",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2460,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "scriptText",
+        "options": {
+          "fileName": "script.txt",
+          "encoding": "utf8"
+        }
+      },
+      "id": "cd016",
+      "name": "8c. Script binary",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2700,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "script.txt",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={ $('8. Create Drive folder').first().json.id }"
+        },
+        "options": {}
+      },
+      "id": "cd017",
+      "name": "8d. Upload script to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2940,
+        320
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DRIVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.spreadsheetId }",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.sheetName }",
+          "mode": "name"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={ $('3b. One topic').first().json.date }",
+            "drive_folder": "={ 'https://drive.google.com/drive/folders/' + $('8. Create Drive folder').first().json.id }",
+            "drive_script": "={{ $json.webViewLink || $json.webContentLink }}"
+          },
+          "matchingColumns": [
+            "date"
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "cd018",
+      "name": "8e. Sheet: script Drive link",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3180,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SHEETS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 4. Visuals from the script split\nSwitch:\n\u2022 ai_image = Pollinations\n\u2022 stock_video / stock_photo = Pexels\n\u2022 ai_video = Pollinations wan-fast (free key) or fallback stock\nEach file -> Drive + local disk for FFmpeg.",
+        "height": 220,
+        "width": 340,
+        "color": 6
+      },
+      "id": "cd019",
+      "name": "STEP 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pack",
+              "name": "pack",
+              "value": "={ $('5. Extract pack').first().json.pack }",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd020",
+      "name": "9. Reload pack",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2460,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "pack.scenes",
+        "options": {}
+      },
+      "id": "cd021",
+      "name": "9b. Split scenes",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2700,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no",
+              "name": "scene_no",
+              "value": "={{ $itemIndex + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cd022",
+      "name": "9c. Number scenes",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2940,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "cd023",
+      "name": "10. Loop scenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3180,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "v1",
+                    "leftValue": "={{ $json.visual_type }}",
+                    "rightValue": "ai_image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ai_image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "v2",
+                    "leftValue": "={{ $json.visual_type }}",
+                    "rightValue": "stock_video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stock_video"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "v3",
+                    "leftValue": "={{ $json.visual_type }}",
+                    "rightValue": "stock_photo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stock_photo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "v4",
+                    "leftValue": "={{ $json.visual_type }}",
+                    "rightValue": "ai_video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ai_video"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "cd024",
+      "name": "11. Switch visual type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3460,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={ 'https://image.pollinations.ai/prompt/' + encodeURIComponent(($('10. Loop scenes').item.json.ai_prompt || 'cinematic still, magic hour, golden rim light, teal shadows, photoreal workspace') ) + '?width=1080&height=1920&model=flux&nologo=true' }",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cd025",
+      "name": "12. AI image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={ 'https://api.pexels.com/v1/videos/search?query=' + encodeURIComponent($('10. Loop scenes').item.json.stock_query || 'golden hour laptop') + '&orientation=portrait&per_page=5' }",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.PEXELS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "cd026",
+      "name": "13. Pexels video search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "u",
+              "name": "mediaUrl",
+              "value": "={{ $json.videos[0].video_files[0].link }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd027",
+      "name": "13b. Pick video URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4080,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.mediaUrl }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cd028",
+      "name": "13c. Download stock video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4360,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={ 'https://api.pexels.com/v1/search?query=' + encodeURIComponent($('10. Loop scenes').item.json.stock_query || 'golden hour office') + '&orientation=portrait&per_page=5' }",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.PEXELS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "cd029",
+      "name": "14. Pexels photo search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "u",
+              "name": "mediaUrl",
+              "value": "={{ $json.photos[0].src.portrait || $json.photos[0].src.large }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd030",
+      "name": "14b. Pick photo URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4080,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.mediaUrl }}",
+        "options": {
+          "timeout": 90000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cd031",
+      "name": "14c. Download stock photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4360,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={ 'https://gen.pollinations.ai/video/' + encodeURIComponent($('10. Loop scenes').item.json.ai_video_prompt || $('10. Loop scenes').item.json.ai_prompt || 'magic hour cinematic office, slow push in') + '?model=wan-fast&duration=4&aspectRatio=9:16&key=' + $env.POLLINATIONS_KEY }",
+        "options": {
+          "timeout": 240000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cd032",
+      "name": "15. AI video (wan-fast)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        980
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fileName": "={{ $('2. Config').first().json.outDir + \"\\\\media\\\\scene_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".\" + (['stock_video','ai_video'].includes($('10. Loop scenes').item.json.visual_type) ? 'mp4' : 'jpg') }",
+        "options": {}
+      },
+      "id": "cd033",
+      "name": "16. Save visual disk",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        4680,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $('2. Config').first().json.outDir + \"\\\\media\\\\scene_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".\" + (['stock_video','ai_video'].includes($('10. Loop scenes').item.json.visual_type) ? 'mp4' : 'jpg') }",
+        "options": {}
+      },
+      "id": "cd034",
+      "name": "16r. Read visual",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        4820,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ 'scene_' + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + '_' + $('10. Loop scenes').item.json.visual_type + '.' + (['stock_video','ai_video'].includes($('10. Loop scenes').item.json.visual_type) ? 'mp4' : 'jpg') }",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={ $('8. Create Drive folder').first().json.id }"
+        },
+        "options": {}
+      },
+      "id": "cd035",
+      "name": "16b. Upload visual Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4960,
+        600
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DRIVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "im",
+              "leftValue": "={ ['ai_image','stock_photo'].includes($('10. Loop scenes').item.json.visual_type) }",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "cd036",
+      "name": "17. Image clip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5240,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"ffmpeg -y -loop 1 -i \\\"\" + $('2. Config').first().json.outDir + \"\\\\media\\\\scene_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".jpg\\\" -t 7 -vf \\\"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30\\\" -an -c:v libx264 -pix_fmt yuv420p -preset veryfast \\\"\" + $('2. Config').first().json.outDir + \"\\\\clips\\\\clip_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".mp4\\\"\" }"
+      },
+      "id": "cd037",
+      "name": "17a. FFmpeg image",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        5520,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"ffmpeg -y -stream_loop -1 -i \\\"\" + $('2. Config').first().json.outDir + \"\\\\media\\\\scene_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".mp4\\\" -t 7 -vf \\\"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30\\\" -an -c:v libx264 -pix_fmt yuv420p -preset veryfast \\\"\" + $('2. Config').first().json.outDir + \"\\\\clips\\\\clip_\" + String($('10. Loop scenes').item.json.scene_no).padStart(2,'0') + \".mp4\\\"\" }"
+      },
+      "id": "cd038",
+      "name": "17b. FFmpeg video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        5520,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 8,
+        "unit": "seconds"
+      },
+      "id": "cd039",
+      "name": "17c. Wait 8 sec",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5800,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5 TTS  ## 6 Combine  ## 7 Drive + Sheet\nVoice -> Drive\nFFmpeg final mp4\nUpload audio + video\nSheet status = ready",
+        "height": 200,
+        "width": 300,
+        "color": 7
+      },
+      "id": "cd040",
+      "name": "STEP 5-7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3180,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={ 'https://text.pollinations.ai/' + encodeURIComponent($('5. Extract pack').first().json.pack.script) + '?model=openai-audio&voice=nova' }",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cd041",
+      "name": "18. Generate voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3460,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "={ $('2. Config').first().json.outDir + '\\\\voice.mp3' }",
+        "options": {}
+      },
+      "id": "cd042",
+      "name": "18b. Save voice disk",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        3740,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={ $('2. Config').first().json.outDir + '\\\\voice.mp3' }",
+        "options": {}
+      },
+      "id": "cd043",
+      "name": "18r. Read voice",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3880,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "voice.mp3",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={ $('8. Create Drive folder').first().json.id }"
+        },
+        "options": {}
+      },
+      "id": "cd044",
+      "name": "18c. Upload audio Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4020,
+        1200
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DRIVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c",
+              "name": "concatList",
+              "value": "={{ ['01','02','03','04','05','06'].map(n => \"file '\" + $('2. Config').first().json.outDir.replaceAll('\\\\','/') + '/clips/clip_' + n + \".mp4'\").join('\\n') }",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd045",
+      "name": "19. Concat list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4300,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "concatList",
+        "options": {
+          "fileName": "concat.txt",
+          "encoding": "utf8"
+        }
+      },
+      "id": "cd046",
+      "name": "19b. Concat file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        4580,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "={ $('2. Config').first().json.outDir + '\\\\clips\\\\concat.txt' }",
+        "options": {}
+      },
+      "id": "cd047",
+      "name": "19c. Save concat",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        4860,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"ffmpeg -y -f concat -safe 0 -i \\\"\" + $('2. Config').first().json.outDir + \"\\\\clips\\\\concat.txt\\\" -i \\\"\" + $('2. Config').first().json.outDir + \"\\\\voice.mp3\\\" -vf \\\"scale=1080:1920,format=yuv420p,drawtext=fontfile=C\\\\:/Windows/Fonts/arialbd.ttf:text=LOOP WORK:x=w-text_w-40:y=48:fontsize=32:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2\\\" -map 0:v:0 -map 1:a:0 -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k -shortest -movflags +faststart \\\"\" + $('2. Config').first().json.outDir + \"\\\\loop-work-reel.mp4\\\"\" }"
+      },
+      "id": "cd048",
+      "name": "20. Render final video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        5140,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={ $('2. Config').first().json.outDir + '\\\\loop-work-reel.mp4' }",
+        "options": {}
+      },
+      "id": "cd049",
+      "name": "20b. Read final mp4",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        5420,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "loop-work-reel.mp4",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={ $('8. Create Drive folder').first().json.id }"
+        },
+        "options": {}
+      },
+      "id": "cd050",
+      "name": "20c. Upload final Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5700,
+        1200
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DRIVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.spreadsheetId }",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={ $('2. Config').first().json.sheetName }",
+          "mode": "name"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={ $('3b. One topic').first().json.date }",
+            "status": "ready",
+            "drive_audio": "={{ $('18c. Upload audio Drive').first().json.webViewLink }}",
+            "drive_final": "={{ $json.webViewLink || $json.webContentLink }}",
+            "drive_images": "={ 'https://drive.google.com/drive/folders/' + $('8. Create Drive folder').first().json.id }",
+            "drive_stock": "={ 'https://drive.google.com/drive/folders/' + $('8. Create Drive folder').first().json.id }",
+            "drive_ai_video": "={ 'https://drive.google.com/drive/folders/' + $('8. Create Drive folder').first().json.id }",
+            "notes": "All files are in the Drive folder for this day"
+          },
+          "matchingColumns": [
+            "date"
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "cd051",
+      "name": "21. Sheet: ready + links",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        5980,
+        1200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SHEETS",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1. Test in editor": {
+      "main": [
+        [
+          {
+            "node": "2. Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Every morning": {
+      "main": [
+        [
+          {
+            "node": "2. Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Config": {
+      "main": [
+        [
+          {
+            "node": "3. Read calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Read calendar": {
+      "main": [
+        [
+          {
+            "node": "3. Keep pending only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Keep pending only": {
+      "main": [
+        [
+          {
+            "node": "3b. One topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3b. One topic": {
+      "main": [
+        [
+          {
+            "node": "4. Script prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Script prompt": {
+      "main": [
+        [
+          {
+            "node": "4. Gemini script + visual split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Gemini script + visual split": {
+      "main": [
+        [
+          {
+            "node": "5. Extract pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Extract pack": {
+      "main": [
+        [
+          {
+            "node": "6. Sheet: save script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Sheet: save script": {
+      "main": [
+        [
+          {
+            "node": "7. Local folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Create Drive folder": {
+      "main": [
+        [
+          {
+            "node": "8b. Script to file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8b. Script to file": {
+      "main": [
+        [
+          {
+            "node": "8c. Script binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8c. Script binary": {
+      "main": [
+        [
+          {
+            "node": "8d. Upload script to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8d. Upload script to Drive": {
+      "main": [
+        [
+          {
+            "node": "8e. Sheet: script Drive link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8e. Sheet: script Drive link": {
+      "main": [
+        [
+          {
+            "node": "9. Reload pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Local folders": {
+      "main": [
+        [
+          {
+            "node": "8. Create Drive folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Reload pack": {
+      "main": [
+        [
+          {
+            "node": "9b. Split scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9b. Split scenes": {
+      "main": [
+        [
+          {
+            "node": "9c. Number scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9c. Number scenes": {
+      "main": [
+        [
+          {
+            "node": "10. Loop scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Loop scenes": {
+      "main": [
+        [
+          {
+            "node": "18. Generate voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "11. Switch visual type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Switch visual type": {
+      "main": [
+        [
+          {
+            "node": "12. AI image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "13. Pexels video search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "14. Pexels photo search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "15. AI video (wan-fast)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "13. Pexels video search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. AI image": {
+      "main": [
+        [
+          {
+            "node": "16. Save visual disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Pexels video search": {
+      "main": [
+        [
+          {
+            "node": "13b. Pick video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13b. Pick video URL": {
+      "main": [
+        [
+          {
+            "node": "13c. Download stock video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13c. Download stock video": {
+      "main": [
+        [
+          {
+            "node": "16. Save visual disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Pexels photo search": {
+      "main": [
+        [
+          {
+            "node": "14b. Pick photo URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14b. Pick photo URL": {
+      "main": [
+        [
+          {
+            "node": "14c. Download stock photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14c. Download stock photo": {
+      "main": [
+        [
+          {
+            "node": "16. Save visual disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15. AI video (wan-fast)": {
+      "main": [
+        [
+          {
+            "node": "16. Save visual disk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "13. Pexels video search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16. Save visual disk": {
+      "main": [
+        [
+          {
+            "node": "16r. Read visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16r. Read visual": {
+      "main": [
+        [
+          {
+            "node": "16b. Upload visual Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16b. Upload visual Drive": {
+      "main": [
+        [
+          {
+            "node": "17. Image clip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17. Image clip?": {
+      "main": [
+        [
+          {
+            "node": "17a. FFmpeg image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "17b. FFmpeg video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17a. FFmpeg image": {
+      "main": [
+        [
+          {
+            "node": "17c. Wait 8 sec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17b. FFmpeg video": {
+      "main": [
+        [
+          {
+            "node": "17c. Wait 8 sec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17c. Wait 8 sec": {
+      "main": [
+        [
+          {
+            "node": "10. Loop scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18. Generate voice": {
+      "main": [
+        [
+          {
+            "node": "18b. Save voice disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18b. Save voice disk": {
+      "main": [
+        [
+          {
+            "node": "18r. Read voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18r. Read voice": {
+      "main": [
+        [
+          {
+            "node": "18c. Upload audio Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18c. Upload audio Drive": {
+      "main": [
+        [
+          {
+            "node": "19. Concat list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. Concat list": {
+      "main": [
+        [
+          {
+            "node": "19b. Concat file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19b. Concat file": {
+      "main": [
+        [
+          {
+            "node": "19c. Save concat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19c. Save concat": {
+      "main": [
+        [
+          {
+            "node": "20. Render final video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20. Render final video": {
+      "main": [
+        [
+          {
+            "node": "20b. Read final mp4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20b. Read final mp4": {
+      "main": [
+        [
+          {
+            "node": "20c. Upload final Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20c. Upload final Drive": {
+      "main": [
+        [
+          {
+            "node": "21. Sheet: ready + links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "loop-work-calendar-drive-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "loopWorkCalendarDrive",
+  "tags": []
+}
