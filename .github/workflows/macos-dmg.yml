@@ -38,12 +38,43 @@ jobs:
 
       - name: Create backend virtualenv
         run: |
+          set -euo pipefail
           python3 -m venv backend/.venv
           backend/.venv/bin/python -m pip install --upgrade pip
           backend/.venv/bin/python -m pip install -r backend/requirements.txt -r backend/requirements-build.txt
+          backend/.venv/bin/python -m pip show pyinstaller pymupdf fastapi
+          (cd backend && .venv/bin/python -c "import app.paths, app.main; print('backend imports ok')")
 
-      - name: Build application and generate DMG
-        run: npm run package:mac
+      - name: Build bundled FastAPI backend
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/Library/Caches/Savuor-build" ../backend-dist
+          ../backend/.venv/bin/python -m PyInstaller \
+            --noconfirm \
+            --clean \
+            --distpath "$HOME/Library/Caches/Savuor-build/backend-dist" \
+            --workpath "$HOME/Library/Caches/Savuor-build/backend-work" \
+            build_backend.spec
+          BINARY="$HOME/Library/Caches/Savuor-build/backend-dist/savuor-backend/savuor-backend"
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: PyInstaller did not produce savuor-backend"
+            find "$HOME/Library/Caches/Savuor-build" -maxdepth 4 -print
+            exit 1
+          fi
+          chmod +x "$BINARY"
+          rm -rf ../backend-dist/savuor-backend
+          cp -R "$HOME/Library/Caches/Savuor-build/backend-dist/savuor-backend" ../backend-dist/savuor-backend
+          ls -lh ../backend-dist/savuor-backend/savuor-backend
+        working-directory: backend
+
+      - name: Build Electron UI
+        run: npm run build
+
+      - name: Generate DMG
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          node node_modules/electron-builder/cli.js --mac dmg -c.directories.output=release
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
@@ -63,6 +94,8 @@ jobs:
           DMGS="$(find . -name '*.dmg' -type f ! -path './node_modules/*' ! -path './.git/*' -print)"
           if [ -z "${DMGS}" ]; then
             echo "ERROR: Build finished but no .dmg was generated."
+            echo "release/ contents:"
+            ls -la release || true
             exit 1
           fi
           echo "${DMGS}" | while IFS= read -r dmg; do
