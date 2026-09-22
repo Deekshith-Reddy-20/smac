@@ -13,12 +13,16 @@ const pythonCandidates = [
   path.join(root, "backend", ".venv", "bin", "python3"),
 ];
 
-function run(command, args, cwd, extraEnv = {}) {
+function run(command, args, cwd, extraEnv = {}, useShell = false) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
       stdio: "inherit",
+      shell: useShell,
       env: { ...process.env, ...extraEnv },
+    });
+    child.on("error", (error) => {
+      reject(new Error(`${command} ${args.join(" ")} failed: ${error.message}`));
     });
     child.on("exit", (code) => {
       if (code === 0) resolve();
@@ -74,7 +78,7 @@ async function main() {
   fs.mkdirSync(path.join(root, "backend-dist"), { recursive: true });
   await buildBackend();
   console.log("Building Electron UI…");
-  await run("npm", ["run", "build"], root);
+  await run("npm", ["run", "build"], root, {}, true);
   console.log("Creating Savuor macOS DMG and ZIP…");
   const builderCli = path.join(root, "node_modules", "electron-builder", "cli.js");
   await run(process.execPath, [builderCli, "--mac", "dmg", "--mac", "zip", `-c.directories.output=${installerOut}`], root, {

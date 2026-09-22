@@ -31,7 +31,18 @@ export function getBackendRuntime(): BackendRuntime {
 }
 
 export function backendExePath() {
-  return path.join(process.resourcesPath, "backend", "savuor-backend.exe");
+  const names = process.platform === "win32" ? ["savuor-backend.exe"] : ["savuor-backend"];
+  const roots = [
+    path.join(process.resourcesPath, "backend"),
+    path.join(process.resourcesPath, "backend", "savuor-backend"),
+  ];
+  for (const root of roots) {
+    for (const name of names) {
+      const candidate = path.join(root, name);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+  return path.join(process.resourcesPath, "backend", names[0]);
 }
 
 function backendPidPath() {
@@ -155,10 +166,18 @@ function postJson(port: number, pathname: string, body: unknown): Promise<{ stat
 }
 
 function killProcessTree(pid: number) {
-  spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
-    windowsHide: true,
-    stdio: "ignore",
-  });
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    return;
+  }
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    // ignore
+  }
 }
 
 export async function startBackend(): Promise<BackendRuntime> {
