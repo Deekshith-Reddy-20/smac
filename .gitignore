@@ -2,6 +2,8 @@ node_modules/
 dist/
 dist-electron/
 release/
+*.dmg
+*.dmg.blockmap
 backend/.venv/
 backend/.env
 backend/build/

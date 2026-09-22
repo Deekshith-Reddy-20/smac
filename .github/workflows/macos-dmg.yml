@@ -1,0 +1,140 @@
+name: Build Savour macOS DMG
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-mac:
+    name: Build Savour macOS DMG
+    runs-on: macos-14
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create backend virtualenv
+        run: |
+          python3 -m venv backend/.venv
+          backend/.venv/bin/python -m pip install --upgrade pip
+          backend/.venv/bin/python -m pip install -r backend/requirements.txt -r backend/requirements-build.txt
+
+      - name: Build application and generate DMG
+        run: npm run package:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Validate DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          PRODUCT="$(node -p "require('./package.json').build.productName")"
+          echo "Product name: ${PRODUCT}"
+          echo "Version: ${VERSION}"
+          echo "Runner: $(uname -s) $(uname -m)"
+          echo "Signing: not configured (CSC_IDENTITY_AUTO_DISCOVERY=false, hardenedRuntime=false)"
+          echo "Notarization: not configured"
+          echo
+          echo "Searching for generated DMG files..."
+          DMGS="$(find . -name '*.dmg' -type f ! -path './node_modules/*' ! -path './.git/*' -print)"
+          if [ -z "${DMGS}" ]; then
+            echo "ERROR: Build finished but no .dmg was generated."
+            exit 1
+          fi
+          echo "${DMGS}" | while IFS= read -r dmg; do
+            echo "DMG path: ${dmg}"
+            echo "DMG size: $(du -h "${dmg}" | awk '{print $1}') ($(wc -c < "${dmg}" | tr -d ' ') bytes)"
+            case "${dmg}" in
+              *arm64*) echo "Architecture: arm64" ;;
+              *x64*|*amd64*) echo "Architecture: x64" ;;
+              *universal*) echo "Architecture: universal" ;;
+              *) echo "Architecture: unknown from filename" ;;
+            esac
+          done
+          shopt -s nullglob
+          RELEASE_DMGS=(release/*.dmg)
+          if [ ${#RELEASE_DMGS[@]} -eq 0 ]; then
+            echo "ERROR: No DMG found in release/. Refusing to upload an empty artifact."
+            exit 1
+          fi
+          echo "Release DMG files:"
+          ls -lh "${RELEASE_DMGS[@]}"
+
+      - name: Upload CueAI-mac
+        uses: actions/upload-artifact@v4
+        with:
+          name: CueAI-mac
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish tagged GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package-mac
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download CueAI-mac
+        uses: actions/download-artifact@v4
+        with:
+          name: CueAI-mac
+          path: dmg-out
+
+      - name: Prepare versioned release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          shopt -s nullglob
+          DMGS=(dmg-out/*.dmg)
+          if [ ${#DMGS[@]} -eq 0 ]; then
+            echo "ERROR: CueAI-mac artifact contained no DMG. Refusing to create a release."
+            exit 1
+          fi
+          mkdir -p release-assets
+          for dmg in "${DMGS[@]}"; do
+            base="$(basename "${dmg}")"
+            arch="arm64"
+            case "${base}" in
+              *arm64*) arch="arm64" ;;
+              *x64*|*amd64*) arch="x64" ;;
+              *universal*) arch="universal" ;;
+            esac
+            dest="release-assets/Savuor-${TAG}-${arch}.dmg"
+            cp "${dmg}" "${dest}"
+            echo "Release asset: ${dest} ($(du -h "${dest}" | awk '{print $1}'))"
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Savuor ${{ github.ref_name }}
+          files: release-assets/*.dmg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

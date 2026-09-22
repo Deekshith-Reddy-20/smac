@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.electron.json",
     "pack": "npm run build && electron-builder --dir",
     "package": "node scripts/package-windows.mjs",
+    "package:mac": "node scripts/package-macos.mjs",
     "dist": "node scripts/package-windows.mjs"
   },
   "dependencies": {
@@ -62,6 +63,23 @@
         "to": "icon.png"
       }
     ],
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["arm64"]
+        }
+      ],
+      "artifactName": "Savuor-mac-${arch}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
     "win": {
       "icon": "build/icon.ico",
       "target": [
