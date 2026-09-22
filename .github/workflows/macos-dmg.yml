@@ -74,7 +74,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          node node_modules/electron-builder/cli.js --mac dmg -c.directories.output=release
+          echo "Packaging inputs:"
+          ls -la dist dist-electron build
+          ls -la backend-dist/savuor-backend | head
+          node node_modules/electron-builder/cli.js \
+            --mac dmg \
+            --publish never \
+            -c.mac.identity=null \
+            -c.directories.output=release
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
